@@ -177,6 +177,8 @@ pub enum PacketBody {
     },
     Weather {
         weather: Weather,
+        position: Option<Box<PositionReport>>,
+        messaging: Option<bool>,
         telemetry: Option<Telemetry>,
         comment: Option<String>,
     },
@@ -339,6 +341,12 @@ impl<'a> ParseState<'a> {
             },
             PacketType::Weather => PacketBody::Weather {
                 weather: self.weather.take().expect("weather packet has weather"),
+                position: if self.latitude.is_some() {
+                    Some(Box::new(self.take_position()))
+                } else {
+                    None
+                },
+                messaging: self.messaging,
                 telemetry: self.telemetry.take(),
                 comment: self.comment.take(),
             },
@@ -387,6 +395,7 @@ macro_rules! packet_accessors {
                 PacketBody::Location { position, .. }
                 | PacketBody::Object { position, .. }
                 | PacketBody::Item { position, .. } => Some(position),
+                PacketBody::Weather { position, .. } => position.as_deref(),
                 _ => None,
             }
         }
@@ -412,7 +421,15 @@ macro_rules! packet_accessors {
         pub fn telemetry(&self) -> Option<&Telemetry> {
             match &self.body {
                 PacketBody::Telemetry(telemetry) => Some(telemetry),
-                PacketBody::Weather { telemetry, .. } => telemetry.as_ref(),
+                PacketBody::Weather {
+                    telemetry,
+                    position,
+                    ..
+                } => telemetry.as_ref().or_else(|| {
+                    position
+                        .as_ref()
+                        .and_then(|position| position.telemetry.as_ref())
+                }),
                 _ => self
                     .position()
                     .and_then(|position| position.telemetry.as_ref()),
@@ -421,7 +438,13 @@ macro_rules! packet_accessors {
 
         pub fn comment(&self) -> Option<&str> {
             match &self.body {
-                PacketBody::Weather { comment, .. } => comment.as_deref(),
+                PacketBody::Weather {
+                    comment, position, ..
+                } => comment.as_deref().or_else(|| {
+                    position
+                        .as_ref()
+                        .and_then(|position| position.comment.as_deref())
+                }),
                 _ => self
                     .position()
                     .and_then(|position| position.comment.as_deref()),
@@ -479,6 +502,7 @@ macro_rules! packet_accessors {
         pub fn messaging(&self) -> Option<bool> {
             match &self.body {
                 PacketBody::Location { messaging, .. } => Some(*messaging),
+                PacketBody::Weather { messaging, .. } => *messaging,
                 _ => None,
             }
         }

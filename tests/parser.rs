@@ -764,6 +764,25 @@ fn positioned_weather_keeps_its_enclosing_object_or_item_type() {
 }
 
 #[test]
+fn positioned_weather_retains_its_position_in_the_weather_body() {
+    let packet = parse("2W0FWJ>APRS:!5120.00N/00300.00W_206/001g003t085").unwrap();
+
+    match &packet.body {
+        PacketBody::Weather {
+            position,
+            messaging,
+            ..
+        } => {
+            let position = position.as_deref().expect("positioned weather");
+            assert_eq!(position.latitude, 51.0 + 20.0 / 60.0);
+            assert_eq!(position.longitude, -3.0);
+            assert_eq!(*messaging, Some(false));
+        }
+        body => panic!("unexpected body: {body:?}"),
+    }
+}
+
+#[test]
 fn accepts_fap_compatible_lowercase_hemispheres() {
     let packet = parse("N0CALL>APRS:!2952.51n/09653.75w#").unwrap();
     assert!(packet.latitude().unwrap() > 0.0);

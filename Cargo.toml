@@ -29,3 +29,7 @@ required-features = ["aprs-is"]
 [[bench]]
 name = "parser"
 harness = false
+
+[[example]]
+name = "corpus-bench"
+path = "examples/corpus-bench.rs"

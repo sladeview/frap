@@ -164,6 +164,18 @@ scripts/bootstrap-perl-fap
 cargo run --release --example fap-diff -- test-data/real-world-1m.tnc2
 ```
 
+For a parser-only throughput comparison, load the same corpus into memory in
+both runtimes and run repeated timed passes:
+
+```console
+cargo run --release --example corpus-bench -- test-data/real-world-1m.tnc2 3
+perl -Itarget/perl-fap tools/perl-fap-bench.pl test-data/real-world-1m.tnc2 3
+```
+
+These benchmarks exclude database export, differential-report I/O, and corpus
+loading. The Rust runner reports both borrowed and owned FRAP parsing; both
+runners report every pass and the median packet rate.
+
 The comparator reports pass/fail agreement, error distributions, packet-type,
 position, message, telemetry, and weather differences among mutual successes.
 Weather comments are compared when both parsers attach a weather record.
