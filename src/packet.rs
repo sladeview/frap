@@ -641,6 +641,8 @@ pub fn parse_ref_with_options(
         ..ParseState::default()
     };
     parse_body(&mut packet, options)?;
+    let raw_body = &raw[raw.len() - packet.body.len()..];
+    restore_utf8_text_fields(&mut packet, raw_body);
     sanitize_parser_placeholders(&mut packet);
     Ok(packet.into_packet_ref())
 }
@@ -662,6 +664,41 @@ struct HeaderFields<'a> {
     source: Cow<'a, str>,
     destination: Cow<'a, str>,
     digipeaters: Vec<DigipeaterRef<'a>>,
+}
+
+fn restore_utf8_text_fields(packet: &mut ParseState<'_>, raw_body: &[u8]) {
+    fn restore(value: &mut String, parser_body: &str, raw_body: &[u8]) {
+        if !value.contains(NON_ASCII_BYTE) {
+            return;
+        }
+        let offset = {
+            let mut matches = parser_body.match_indices(value.as_str());
+            let Some((offset, _)) = matches.next() else {
+                return;
+            };
+            if matches.next().is_some() {
+                return;
+            }
+            offset
+        };
+        let Some(raw) = raw_body.get(offset..offset + value.len()) else {
+            return;
+        };
+        if let Ok(text) = std::str::from_utf8(raw) {
+            *value = text.to_owned();
+        }
+    }
+
+    let parser_body = packet.body.as_ref();
+    if let Some(status) = &mut packet.status {
+        restore(status, parser_body, raw_body);
+    }
+    if let Some(comment) = &mut packet.comment {
+        restore(comment, parser_body, raw_body);
+    }
+    if let Some(message) = &mut packet.message {
+        restore(&mut message.text, parser_body, raw_body);
+    }
 }
 
 fn sanitize_parser_placeholders(packet: &mut ParseState<'_>) {

@@ -6,8 +6,9 @@ packets in TNC2/APRS-IS text format without C bindings or runtime
 dependencies.
 
 The parser accepts either UTF-8 text or raw bytes. `Packet::original_bytes`
-always contains the exact input; textual fields use an ASCII parser view where
-non-ASCII payload bytes are represented by `?`.
+always contains the exact input. Valid UTF-8 is restored in unambiguous
+free-text fields after structural parsing; invalid or ambiguous non-ASCII
+payload bytes are represented by `?`.
 
 ```rust
 use frap::{PacketBody, parse};
@@ -186,8 +187,8 @@ inventoried even though FAP 1.21 has no corresponding output fields.
 Exact packets with differing outcomes are written as hex to
 `target/fap-diff/outcome-mismatches.tsv`. Field-presence differences are reported
 directionally, and every run atomically refreshes `target/fap-diff/summary.txt`.
-Known differences caused by FRAP's documented extensions, positioned-weather
-inline telemetry, and APRS 1.1 reply-acks are written separately to
+Known differences caused by FRAP's documented extensions, UTF-8 free text,
+positioned-weather inline telemetry, and APRS 1.1 reply-acks are written separately to
 `target/fap-diff/intentional-differences.tsv`.
 Normalized weather-comment edit fragments are grouped by frequency in
 `target/fap-diff/comment-deltas.tsv` so common scanner effects can be audited

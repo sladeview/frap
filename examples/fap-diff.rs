@@ -245,11 +245,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .message_id
                         .as_deref()
                         .is_some_and(|message_id| message_id.contains('}'));
+                let message_text_reason = reply_ack_difference
+                    .then_some("aprs_1_1_reply_ack")
+                    .or_else(|| {
+                        utf8_restoration_difference(
+                            frap.message_text.as_deref(),
+                            fap.message_text.as_deref(),
+                        )
+                        .then_some("utf8_free_text")
+                    });
                 compare_or_record_intentional_string_field(
                     "message_text",
                     frap.message_text.as_deref(),
                     fap.message_text.as_deref(),
-                    reply_ack_difference.then_some("aprs_1_1_reply_ack"),
+                    message_text_reason,
                     comparison.total,
                     &raw,
                     &mut comparison,
@@ -385,6 +394,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Some("positioned_weather_inline_telemetry")
                         } else if raw.contains(&0x7f) && frap.comment != fap.comment {
                             Some("ascii_parser_view_del")
+                        } else if utf8_restoration_difference(
+                            frap.comment.as_deref(),
+                            fap.comment.as_deref(),
+                        ) {
+                            Some("utf8_free_text")
                         } else if frap
                             .weather_values
                             .iter()
@@ -794,6 +808,23 @@ fn comments_differ_only_by_inline_telemetry(frap: Option<&str>, fap: Option<&str
     };
     let stripped = stripped.trim();
     frap.unwrap_or_default() == stripped
+}
+
+fn utf8_restoration_difference(frap: Option<&str>, fap: Option<&str>) -> bool {
+    let (Some(frap), Some(fap)) = (frap, fap) else {
+        return false;
+    };
+    !frap.is_ascii()
+        && frap
+            .chars()
+            .flat_map(|character| {
+                if character.is_ascii() {
+                    vec![character]
+                } else {
+                    vec!['?'; character.len_utf8()]
+                }
+            })
+            .eq(fap.chars())
 }
 
 fn comments_differ_only_by_extension_placeholder(frap: Option<&str>, fap: Option<&str>) -> bool {

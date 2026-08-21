@@ -866,7 +866,13 @@ fn accepts_utf8_and_preserves_exact_packet_bytes() {
     assert_eq!(packet.original_bytes, raw.as_bytes());
     assert_eq!(packet.original, raw);
     assert_eq!(packet.packet_type(), Some(PacketType::Status));
-    assert_eq!(packet.status(), Some("?????? ???"));
+    assert_eq!(packet.status(), Some("晴れ ☀"));
+
+    let packet = parse("N0CALL>APRS:!5120.00N/00300.00W>晴れ ☀").unwrap();
+    assert_eq!(packet.comment(), Some("晴れ ☀"));
+
+    let packet = parse("N0CALL>APRS::2W0FWJ   :晴れ ☀{42").unwrap();
+    assert_eq!(packet.message().unwrap().text, "晴れ ☀");
 }
 
 #[test]
