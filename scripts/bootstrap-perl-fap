@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+version=1.21
+sha256=e01b455d46f44710dbcf21b6fa843f09358ce60eee1c4141bc74e0a204d3a020
+url="https://cpan.metacpan.org/authors/id/H/HE/HESSU/Ham-APRS-FAP-$version.tar.gz"
+root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+target="$root/target/perl-fap"
+archive="$target/Ham-APRS-FAP-$version.tar.gz"
+
+if [ -f "$target/Ham/APRS/FAP.pm" ] && [ -f "$target/Ham-APRS-FAP-$version/FAP.pm" ]; then
+    source="$target/Ham-APRS-FAP-$version"
+    mkdir -p "$source/lib/Ham/APRS"
+    cp "$source/FAP.pm" "$source/lib/Ham/APRS/FAP.pm"
+    cp "$source/IS.pm" "$source/lib/Ham/APRS/IS.pm"
+    perl -I"$target" -MHam::APRS::FAP -e \
+        'die "unexpected FAP version\n" unless $Ham::APRS::FAP::VERSION eq "1.21"'
+    echo "Ham::APRS::FAP $version is ready in $target"
+    exit 0
+fi
+
+mkdir -p "$target/Ham/APRS"
+curl -fsSL "$url" -o "$archive"
+actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
+if [ "$actual" != "$sha256" ]; then
+    echo "Ham::APRS::FAP archive checksum mismatch" >&2
+    exit 1
+fi
+
+tar -xzf "$archive" -C "$target"
+source="$target/Ham-APRS-FAP-$version"
+cp "$source/FAP.pm" "$target/Ham/APRS/FAP.pm"
+cp "$source/IS.pm" "$target/Ham/APRS/IS.pm"
+cp "$source/LICENSE" "$target/LICENSE"
+mkdir -p "$source/lib/Ham/APRS"
+cp "$source/FAP.pm" "$source/lib/Ham/APRS/FAP.pm"
+cp "$source/IS.pm" "$source/lib/Ham/APRS/IS.pm"
+
+perl -I"$target" -MHam::APRS::FAP -e \
+    'die "unexpected FAP version\n" unless $Ham::APRS::FAP::VERSION eq "1.21"'
+echo "Ham::APRS::FAP $version is ready in $target"

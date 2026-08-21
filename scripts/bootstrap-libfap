@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+
+version=1.5
+sha256=5259702e4d8f15ccc1e64d04641ade042660e748b59895b9fc22d1c0a6239b09
+url="https://www.pakettiradio.net/downloads/libfap/$version/libfap-$version.tar.gz"
+root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+target="$root/target/libfap"
+source="$target/libfap-$version"
+archive="$target/libfap-$version.tar.gz"
+runner="$target/libfap-outcomes"
+
+if [ -x "$runner" ]; then
+    echo "libfap $version comparison runner is ready in $target"
+    exit 0
+fi
+
+mkdir -p "$target"
+if [ ! -f "$archive" ]; then
+    curl -fsSL "$url" -o "$archive"
+fi
+actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
+if [ "$actual" != "$sha256" ]; then
+    echo "libfap archive checksum mismatch" >&2
+    exit 1
+fi
+if [ ! -d "$source" ]; then
+    tar -xzf "$archive" -C "$target"
+fi
+if [ ! -f "$source/src/.libs/libfap.a" ]; then
+    (cd "$source" && ./configure --disable-shared && make)
+fi
+cc -std=c11 -O2 -I"$source/src" \
+    "$root/tools/libfap-outcomes.c" "$source/src/.libs/libfap.a" -lm -o "$runner"
+echo "libfap $version comparison runner is ready in $target"
