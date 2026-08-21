@@ -1582,6 +1582,7 @@ fn parse_message(packet: &mut ParseState<'_>, body: &str) -> Result<(), ParseErr
         message.rejection_id = Some(id);
     } else if let Some((text, id)) = content.rsplit_once('{') {
         message.text = text.to_owned();
+        let id = id.trim_end();
         if let Some((message_id, ack_id)) = id.split_once('}') {
             message.id = Some(message_id.to_owned());
             if !ack_id.is_empty() {

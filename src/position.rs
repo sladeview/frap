@@ -245,6 +245,11 @@ fn parse_position_comment(packet: &mut ParseState<'_>, original: &str) {
     }
     if let Some(index) = comment.find("/A=")
         && comment.len() >= index + 9
+        && {
+            let altitude = &comment.as_bytes()[index + 3..index + 9];
+            altitude.iter().all(u8::is_ascii_digit)
+                || (altitude[0] == b'-' && altitude[1..].iter().all(u8::is_ascii_digit))
+        }
         && let Ok(feet) = comment[index + 3..index + 9].parse::<f64>()
     {
         packet.altitude_m = Some(feet * 0.3048);

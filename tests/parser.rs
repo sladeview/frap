@@ -143,6 +143,26 @@ fn ordinary_message_ids_do_not_create_empty_reply_acks() {
 }
 
 #[test]
+fn trims_trailing_whitespace_from_message_ids() {
+    let packet = parse("2W0FWJ>APRS::N0CALL   :hello{42 ").unwrap();
+    let message = packet.message().unwrap();
+
+    assert_eq!(message.text, "hello");
+    assert_eq!(message.id.as_deref(), Some("42"));
+}
+
+#[test]
+fn rejects_non_digit_altitude_payloads() {
+    let packet = parse("N0CALL>APRS:!4731.09NI00744.05E&/A=000E28Test").unwrap();
+
+    assert_eq!(packet.altitude_m(), None);
+    assert_eq!(packet.comment(), Some("A=000E28Test"));
+
+    let packet = parse("N0CALL>APRS:!4731.09NI00744.05E&/A=-00042Test").unwrap();
+    assert!((packet.altitude_m().unwrap() - -12.8016).abs() < 0.0001);
+}
+
+#[test]
 fn validates_ax25_calls_and_paths() {
     assert_eq!(check_ax25_call("2w0fwj-2").as_deref(), Some("2W0FWJ-2"));
     assert!(check_ax25_call("N0CALL-16").is_none());
