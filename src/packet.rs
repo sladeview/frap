@@ -151,18 +151,18 @@ pub struct PositionReport {
 #[non_exhaustive]
 pub enum PacketBody {
     Location {
-        position: PositionReport,
+        position: Box<PositionReport>,
         messaging: bool,
     },
     Object {
         name: String,
         alive: bool,
-        position: PositionReport,
+        position: Box<PositionReport>,
     },
     Item {
         name: String,
         alive: bool,
-        position: PositionReport,
+        position: Box<PositionReport>,
     },
     Message(Message),
     TelemetryMessage(Message),
@@ -176,7 +176,7 @@ pub enum PacketBody {
         data: String,
     },
     Weather {
-        weather: Weather,
+        weather: Box<Weather>,
         position: Option<Box<PositionReport>>,
         messaging: Option<bool>,
         telemetry: Option<Telemetry>,
@@ -310,17 +310,17 @@ impl<'a> ParseState<'a> {
         let body = match packet_type {
             PacketType::Location => PacketBody::Location {
                 messaging: self.messaging.unwrap_or(false),
-                position: self.take_position(),
+                position: Box::new(self.take_position()),
             },
             PacketType::Object => PacketBody::Object {
                 name: self.object_name.take().expect("object has a name"),
                 alive: self.alive.expect("object has an alive state"),
-                position: self.take_position(),
+                position: Box::new(self.take_position()),
             },
             PacketType::Item => PacketBody::Item {
                 name: self.item_name.take().expect("item has a name"),
                 alive: self.alive.expect("item has an alive state"),
-                position: self.take_position(),
+                position: Box::new(self.take_position()),
             },
             PacketType::Message => {
                 PacketBody::Message(self.message.take().expect("message has content"))
@@ -340,7 +340,7 @@ impl<'a> ParseState<'a> {
                 data: self.body.to_string(),
             },
             PacketType::Weather => PacketBody::Weather {
-                weather: self.weather.take().expect("weather packet has weather"),
+                weather: Box::new(self.weather.take().expect("weather packet has weather")),
                 position: if self.latitude.is_some() {
                     Some(Box::new(self.take_position()))
                 } else {

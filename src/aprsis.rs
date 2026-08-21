@@ -51,14 +51,25 @@ impl AprsIsConnection {
 
     /// Read one line, removing its CR/LF terminator.
     ///
-    /// Returns `TimedOut` if no complete line arrives before `read_timeout`.
-    /// Lines longer than 2048 bytes are drained and return `InvalidData`.
+    /// Returns `TimedOut` if no complete line arrives before `read_timeout`,
+    /// and `UnexpectedEof` if the connection closes before a complete line is
+    /// received. Lines longer than 2048 bytes are drained and return
+    /// `InvalidData`.
     pub async fn read_line(&mut self, read_timeout: Duration) -> io::Result<String> {
         let line = timeout(read_timeout, async {
             loop {
                 let available = self.reader.fill_buf().await?;
                 if available.is_empty() {
-                    break;
+                    if self.discarding_oversized_line {
+                        break;
+                    }
+                    let message = if self.line_buffer.is_empty() {
+                        "APRS-IS connection closed"
+                    } else {
+                        "APRS-IS connection closed before line terminator"
+                    };
+                    self.line_buffer.clear();
+                    return Err(io::Error::new(io::ErrorKind::UnexpectedEof, message));
                 }
                 let consumed = available
                     .iter()

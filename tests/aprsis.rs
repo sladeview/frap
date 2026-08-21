@@ -113,3 +113,46 @@ async fn async_client_preserves_partial_lines_across_timeouts() {
     );
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn async_client_reports_immediate_eof() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut login = String::new();
+        BufReader::new(&mut stream)
+            .read_line(&mut login)
+            .await
+            .unwrap();
+    });
+
+    let mut client = AprsIsConnection::connect(address, "N0CALL", "-1", "frap-test", "0.1", None)
+        .await
+        .unwrap();
+    let error = client.read_line(Duration::from_secs(1)).await.unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn async_client_rejects_a_partial_line_at_eof() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut login = String::new();
+        BufReader::new(&mut stream)
+            .read_line(&mut login)
+            .await
+            .unwrap();
+        stream.write_all(b"N0CALL>APRS:>partial").await.unwrap();
+    });
+
+    let mut client = AprsIsConnection::connect(address, "N0CALL", "-1", "frap-test", "0.1", None)
+        .await
+        .unwrap();
+    let error = client.read_line(Duration::from_secs(1)).await.unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+    server.await.unwrap();
+}
