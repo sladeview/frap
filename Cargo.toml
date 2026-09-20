@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2024"
 description = "A pure Rust port of the Finnish/Fabulous APRS Parser"
 license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
-repository = "https://github.com/dave/frap"
+repository = "https://github.com/sladeview/frap"
 keywords = ["aprs", "ax25", "packet-radio", "parser"]
 categories = ["parser-implementations"]
-exclude = ["/test-data/*.tnc2", "/test-data/*.json"]
+exclude = ["/.github", "/test-data/*.tnc2", "/test-data/*.json"]
+publish = ["crates-io"]
 
 [package.metadata.docs.rs]
 all-features = true
