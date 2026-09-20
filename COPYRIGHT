@@ -1,0 +1,16 @@
+FRAP
+Copyright (C) 2026 Dave Lewis
+
+FRAP is a Rust port of Ham::APRS::FAP, whose copyright notices are:
+
+Copyright (C) 2005-2012 Tapio Sokura
+Copyright (C) 2007-2012 Heikki Hannikainen
+
+FRAP is free software; you may redistribute it and/or modify it under
+the same terms as Perl 5 itself. At your option, you may use either:
+
+1. the GNU General Public License as published by the Free Software
+   Foundation, version 1 or (at your option) any later version; or
+2. the Artistic License distributed with Perl 5.
+
+See LICENSE-GPL and LICENSE-ARTISTIC for the complete licence texts.

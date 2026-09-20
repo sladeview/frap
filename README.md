@@ -307,3 +307,10 @@ which FAP 1.21 lists as a TODO. The differential report therefore shows intentio
 message-ID and acknowledgement differences for reply-ack packets. Other message-text
 value differences are the public ASCII parser view's `?` substitutions for
 non-ASCII bytes; exact input remains available through `Packet::original_bytes`.
+
+## Licence
+
+FRAP is distributed under the same terms as Perl 5: either the
+[Artistic License 1.0 (Perl)](LICENSE-ARTISTIC) or the
+[GNU General Public License version 1 or later](LICENSE-GPL), at your option.
+See [COPYRIGHT](COPYRIGHT) for FRAP and Ham::APRS::FAP attribution.
