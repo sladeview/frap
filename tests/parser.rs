@@ -34,6 +34,24 @@ fn borrowed_parser_owns_only_fields_that_require_normalization() {
 }
 
 #[test]
+fn borrowed_parser_accepts_non_utf8_and_preserves_exact_packet_bytes() {
+    let raw = b"N0CALL>APRS:>binary \x81 status";
+    let packet = parse_ref(raw).unwrap();
+
+    assert_eq!(packet.original_bytes, raw);
+    assert!(std::ptr::eq(packet.original_bytes.as_ptr(), raw.as_ptr()));
+    assert!(matches!(
+        packet.original,
+        Cow::Owned(ref value) if value == "N0CALL>APRS:>binary \u{fffd} status"
+    ));
+    assert_eq!(packet.status(), Some("binary ? status"));
+
+    let owned = packet.into_owned();
+    assert_eq!(owned.original_bytes, raw);
+    assert_eq!(owned.status(), Some("binary ? status"));
+}
+
+#[test]
 fn stores_type_safe_packet_bodies() {
     let packet = parse("2W0FWJ>APRS:;TEST     *120102h5120.00N/00300.00W>object").unwrap();
     match packet.packet_body() {
