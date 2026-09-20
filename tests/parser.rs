@@ -116,6 +116,20 @@ fn parses_messages_and_reply_ack() {
 }
 
 #[test]
+fn parses_telemetry_metadata_messages() {
+    let packet = parse("N0CALL>APRS::2W0FWJ   :PARM.Temp,Battery").unwrap();
+
+    assert_eq!(packet.packet_type(), Some(PacketType::TelemetryMessage));
+    match packet.packet_body() {
+        PacketBody::TelemetryMessage(message) => {
+            assert_eq!(message.destination, "2W0FWJ");
+            assert_eq!(message.text, "PARM.Temp,Battery");
+        }
+        body => panic!("unexpected body: {body:?}"),
+    }
+}
+
+#[test]
 fn distinguishes_control_responses_from_messages_starting_with_ack() {
     let packet = parse("2W0FWJ>APRS::N0CALL   :ack 3{07").unwrap();
     let message = packet.message().unwrap();
@@ -184,6 +198,17 @@ fn parses_capabilities() {
     assert_eq!(packet.packet_type(), Some(PacketType::Capabilities));
     assert_eq!(packet.capabilities().unwrap()["MSG_CNT"], "12");
     assert_eq!(packet.capabilities().unwrap()["IGATE"], "");
+}
+
+#[test]
+fn parses_generic_beacons() {
+    let packet = parse("N0CALL>BEACON:plain beacon text").unwrap();
+
+    assert_eq!(packet.packet_type(), Some(PacketType::Beacon));
+    match packet.packet_body() {
+        PacketBody::Beacon { data } => assert_eq!(data, "plain beacon text"),
+        body => panic!("unexpected body: {body:?}"),
+    }
 }
 
 #[test]
