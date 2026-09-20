@@ -141,6 +141,41 @@ command for this crate. To run only the parser integration test target, use:
 cargo test --test parser
 ```
 
+## Publishing
+
+CI runs the complete test, lint, documentation, and package checks on every
+pull request and push to `main`. A tag whose name begins with `v` starts the
+crates.io publishing workflow. The tag must exactly match the version in
+`Cargo.toml`, for example `v0.1.0`.
+
+Publishing uses crates.io trusted publishing, so GitHub receives a short-lived
+token for each run rather than storing a crates.io API token as a repository
+secret. After the crate's first release, configure its trusted publisher on
+crates.io with:
+
+- GitHub owner: `sladeview`
+- repository: `frap`
+- workflow: `publish.yml`
+- environment: `crates-io`
+
+Also create a GitHub environment named `crates-io`; requiring approval for that
+environment is recommended. Crates.io currently requires the first version of
+a new crate to be published manually before a trusted publisher can be added.
+For that one-time bootstrap, authenticate locally and run:
+
+```console
+cargo publish --dry-run --locked
+cargo publish --locked
+```
+
+For later versions, update `Cargo.toml` and `Cargo.lock`, commit the release,
+then create and push its matching tag:
+
+```console
+git tag -s v0.2.0
+git push origin v0.2.0
+```
+
 ## Real-world dataset
 
 Large or frequently changing packet datasets belong in the git-ignored
