@@ -10,11 +10,11 @@ sub hex_value {
     return unpack('H*', $_[0]);
 }
 
-my $path = shift @ARGV or die "usage: perl-fap-outcomes.pl CORPUS\n";
-open my $corpus, '<:raw', $path or die "open $path: $!\n";
+my $path = shift @ARGV or die "usage: perl-fap-outcomes.pl DATASET\n";
+open my $dataset, '<:raw', $path or die "open $path: $!\n";
 binmode STDOUT, ':raw';
 
-while (defined(my $packet = <$corpus>)) {
+while (defined(my $packet = <$dataset>)) {
     $packet =~ s/\n\z//;
     my %parsed;
     my $ok = parseaprs(
@@ -60,4 +60,4 @@ while (defined(my $packet = <$corpus>)) {
     ), "\n";
 }
 
-close $corpus or die "close $path: $!\n";
+close $dataset or die "close $path: $!\n";

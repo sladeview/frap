@@ -9,6 +9,10 @@ keywords = ["aprs", "ax25", "packet-radio", "parser"]
 categories = ["parser-implementations"]
 exclude = ["/test-data/*.tnc2", "/test-data/*.json"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 # All parser tests are black-box integration tests in tests/parser.rs. Avoid
 # building an additional empty libtest harness.
@@ -31,5 +35,10 @@ name = "parser"
 harness = false
 
 [[example]]
-name = "corpus-bench"
-path = "examples/corpus-bench.rs"
+name = "dataset-bench"
+path = "examples/dataset-bench.rs"
+
+[[example]]
+name = "dataset-capture"
+path = "examples/dataset-capture.rs"
+required-features = ["aprs-is"]

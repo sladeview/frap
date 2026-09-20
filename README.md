@@ -129,6 +129,8 @@ Run the complete black-box parser suite with:
 cargo test
 cargo test --all-features
 cargo clippy --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
+cargo test --doc --all-features
 cargo bench --bench parser
 ```
 
@@ -139,21 +141,51 @@ command for this crate. To run only the parser integration test target, use:
 cargo test --test parser
 ```
 
-## Real-world corpus
+## Real-world dataset
 
-Large real-world packet corpora belong in the git-ignored `test-data`
-directory. The corpus audit test defaults to
+Large or frequently changing packet datasets belong in the git-ignored
+`test-data` directory because committing them would permanently enlarge the
+repository and its history. Callsigns and positions are expected parts of
+amateur-radio transmissions and are not, by themselves, a reason to anonymize
+a dataset. Before redistributing a capture, however, check its source terms and
+review free-form message text, which can contain information about third
+parties. Small, deliberately selected regression fixtures can be committed with
+the tests.
+
+The dataset audit test defaults to
 `test-data/real-world-1m.tnc2`, or accepts another path through
-`FRAP_CORPUS`:
+`FRAP_DATASET`:
 
 ```console
-cargo test --test corpus -- --ignored --nocapture
-FRAP_CORPUS=/path/to/corpus.tnc2 cargo test --test corpus -- --ignored --nocapture
+cargo test --test dataset -- --ignored --nocapture
+FRAP_DATASET=/path/to/dataset.tnc2 cargo test --test dataset -- --ignored --nocapture
 ```
 
 The audit reports parser errors by stable error code and fails if any packet
-causes a panic. Parse errors do not currently fail the audit, so the corpus can
+causes a panic. Parse errors do not currently fail the audit, so the dataset can
 drive incremental compatibility work.
+
+### Capturing a dataset
+
+The `dataset-capture` example uses FRAP's asynchronous APRS-IS client and writes
+one TNC2 packet per line. Supply your APRS-IS callsign and passcode, the desired
+packet count, and a suitably narrow [APRS-IS server-side filter](https://www.aprs-is.net/javAPRSFilter.aspx):
+
+```console
+APRS_CALLSIGN=2W0FWJ APRS_PASSCODE=-1 cargo run --features aprs-is \
+  --example dataset-capture -- test-data/capture.tnc2 100000 'r/51.5/-3.0/100'
+```
+
+`-1` requests an unverified, receive-only login; use the credentials and server
+permitted by your APRS-IS provider. `APRS_SERVER` can override the default
+`rotate.aprs2.net:14580` server.
+
+The recorder intentionally saves packets before parsing them, so failures remain
+available for compatibility work. It removes APRS-IS server comments and line
+terminators. The current APRS-IS API returns UTF-8 text, so a byte-exact capture
+that must retain invalid UTF-8 needs a raw TCP recorder instead. When retaining
+or sharing a dataset, record its capture period, server and filter, packet count,
+byte size, and checksum in a sibling manifest.
 
 ### Comparing with Perl FAP
 
@@ -165,15 +197,15 @@ scripts/bootstrap-perl-fap
 cargo run --release --example fap-diff -- test-data/real-world-1m.tnc2
 ```
 
-For a parser-only throughput comparison, load the same corpus into memory in
+For a parser-only throughput comparison, load the same dataset into memory in
 both runtimes and run repeated timed passes:
 
 ```console
-cargo run --release --example corpus-bench -- test-data/real-world-1m.tnc2 3
+cargo run --release --example dataset-bench -- test-data/real-world-1m.tnc2 3
 perl -Itarget/perl-fap tools/perl-fap-bench.pl test-data/real-world-1m.tnc2 3
 ```
 
-These benchmarks exclude database export, differential-report I/O, and corpus
+These benchmarks exclude database export, differential-report I/O, and dataset
 loading. The Rust runner reports both borrowed and owned FRAP parsing; both
 runners report every pass and the median packet rate.
 
@@ -232,11 +264,11 @@ fields prevent FAP 1.21 from attaching a weather record. A one-digit `h` embedde
 inside a word or hostname (such as `dh5dy`) is left as comment text rather than
 being mistaken for humidity.
 
-FRAP's `F` water-level, `X` radiation, and `V` battery-voltage extensions are
-recognized at the start of weather data or directly after another parsed weather
-field. This keeps explicit forms such as `X111`, `V135`, and `F....V041` while
-preventing values in METARs, software names, and free-form sensor text from being
-reinterpreted as extensions.
+FRAP additionally recognizes the APRS weather extensions `F` (water level), `X`
+(radiation), and `V` (battery voltage) at the start of weather data or directly
+after another parsed weather field. This keeps explicit forms such as `X111`,
+`V135`, and `F....V041` while preventing values in METARs, software names, and
+free-form sensor text from being reinterpreted as extensions.
 
 Like FAP, FRAP recognizes the variable-width rain markers `r`, `p`, and `P`
 wherever they occur in the remaining weather text. A marker followed by digits

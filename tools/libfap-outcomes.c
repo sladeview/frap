@@ -87,22 +87,22 @@ static void optional_short(const short *value)
 
 int main(int argc, char **argv)
 {
-    FILE *corpus;
+    FILE *dataset;
     char *line = NULL;
     size_t capacity = 0;
     ssize_t length;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: libfap-outcomes CORPUS\n");
+        fprintf(stderr, "usage: libfap-outcomes DATASET\n");
         return 2;
     }
-    corpus = fopen(argv[1], "rb");
-    if (!corpus) {
+    dataset = fopen(argv[1], "rb");
+    if (!dataset) {
         perror(argv[1]);
         return 2;
     }
     fap_init();
-    while ((length = getline(&line, &capacity, corpus)) >= 0) {
+    while ((length = getline(&line, &capacity, dataset)) >= 0) {
         fap_packet_t *packet;
         fap_wx_report_t *weather;
         fap_telemetry_t *telemetry;
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
         if (!packet) {
             fprintf(stderr, "libfap returned NULL\n");
             free(line);
-            fclose(corpus);
+            fclose(dataset);
             fap_cleanup();
             return 3;
         }
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
         fap_free(packet);
     }
     free(line);
-    fclose(corpus);
+    fclose(dataset);
     fap_cleanup();
     return 0;
 }

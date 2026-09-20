@@ -9,7 +9,10 @@ use std::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args_os().skip(1);
-    let path = PathBuf::from(args.next().ok_or("usage: corpus-bench CORPUS [REPEATS]")?);
+    let path = PathBuf::from(
+        args.next()
+            .ok_or("usage: dataset-bench DATASET [REPEATS]")?,
+    );
     let repeats = args
         .next()
         .map(|value| value.to_string_lossy().parse::<usize>())
@@ -29,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         packets.push(std::mem::take(&mut line));
     }
     if packets.is_empty() {
-        return Err("corpus is empty".into());
+        return Err("dataset is empty".into());
     }
 
     benchmark("frap-borrowed", &packets, repeats, |packet| {

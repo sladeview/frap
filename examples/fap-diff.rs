@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let libfap = arguments
         .next_if(|argument| argument == "--libfap")
         .is_some();
-    let corpus_path = arguments
+    let dataset_path = arguments
         .next()
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("test-data/real-world-1m.tnc2"));
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "libfap",
             root.join("target/libfap-diff"),
             Command::new(runner)
-                .arg(&corpus_path)
+                .arg(&dataset_path)
                 .stdout(Stdio::piped())
                 .spawn()?,
         )
@@ -67,13 +67,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Command::new("perl")
                 .arg(format!("-I{}", perl_root.display()))
                 .arg(root.join("tools/perl-fap-outcomes.pl"))
-                .arg(&corpus_path)
+                .arg(&dataset_path)
                 .stdout(Stdio::piped())
                 .spawn()?,
         )
     };
 
-    let corpus = BufReader::new(File::open(&corpus_path)?);
+    let dataset = BufReader::new(File::open(&dataset_path)?);
     let reference_stdout = child.stdout.take().expect("piped reference stdout");
     let reference = BufReader::new(reference_stdout);
 
@@ -104,13 +104,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let mut comparison = Comparison::default();
-    let corpus_lines = corpus.split(b'\n');
+    let dataset_lines = dataset.split(b'\n');
     let mut reference_lines = reference.lines();
-    for raw in corpus_lines {
+    for raw in dataset_lines {
         let raw = raw?;
-        let fap_line = reference_lines
-            .next()
-            .ok_or_else(|| format!("{reference_name} produced fewer outcomes than the corpus"))??;
+        let fap_line = reference_lines.next().ok_or_else(|| {
+            format!("{reference_name} produced fewer outcomes than the dataset")
+        })??;
         comparison.total += 1;
 
         let fap = FapOutcome::parse(&fap_line)?;
@@ -454,7 +454,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     if reference_lines.next().is_some() {
-        return Err(format!("{reference_name} produced more outcomes than the corpus").into());
+        return Err(format!("{reference_name} produced more outcomes than the dataset").into());
     }
     let status = child.wait()?;
     if !status.success() {
@@ -674,9 +674,10 @@ fn decode_optional_hex(value: &str) -> Result<Option<String>, Box<dyn std::error
     if !value.len().is_multiple_of(2) {
         return Err(format!("odd-length hex value: {value:?}").into());
     }
-    let bytes = value
-        .as_bytes()
-        .chunks_exact(2)
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    debug_assert!(remainder.is_empty());
+    let bytes = pairs
+        .iter()
         .map(|pair| {
             std::str::from_utf8(pair)
                 .ok()

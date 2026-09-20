@@ -6,18 +6,18 @@ use bytes;
 use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 use Ham::APRS::FAP qw(parseaprs);
 
-my $path = shift @ARGV or die "usage: perl-fap-bench.pl CORPUS [REPEATS]\n";
+my $path = shift @ARGV or die "usage: perl-fap-bench.pl DATASET [REPEATS]\n";
 my $repeats = shift(@ARGV) // 3;
 die "REPEATS must be greater than zero\n" unless $repeats =~ /^\d+$/ && $repeats > 0;
 
-open my $corpus, '<:raw', $path or die "open $path: $!\n";
+open my $dataset, '<:raw', $path or die "open $path: $!\n";
 my @packets;
-while (defined(my $packet = <$corpus>)) {
+while (defined(my $packet = <$dataset>)) {
     $packet =~ s/\n\z//;
     push @packets, $packet;
 }
-close $corpus or die "close $path: $!\n";
-die "corpus is empty\n" unless @packets;
+close $dataset or die "close $path: $!\n";
+die "dataset is empty\n" unless @packets;
 
 for my $index (0 .. ($#packets < 9_999 ? $#packets : 9_999)) {
     my %parsed;
