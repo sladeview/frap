@@ -6,10 +6,26 @@ use crate::error::{ErrorCode, ParseError};
 use crate::position::{parse_compressed, parse_uncompressed};
 use crate::timestamp::parse_timestamp;
 
+/// Parse a TNC2/APRS-IS packet into an owned [`Packet`].
+///
+/// The input may be UTF-8 text or arbitrary bytes. [`Packet::original_bytes`]
+/// always retains the exact input while public text fields use FRAP's safe text
+/// representation.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the TNC2 envelope or APRS information field
+/// cannot be decoded.
 pub fn parse(raw: impl AsRef<[u8]>) -> Result<Packet, ParseError> {
     parse_with_options(raw, ParseOptions::default())
 }
 
+/// Parse a TNC2/APRS-IS packet into an owned [`Packet`] using `options`.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the packet is invalid under the selected
+/// options or its APRS information field cannot be decoded.
 pub fn parse_with_options(
     raw: impl AsRef<[u8]>,
     options: ParseOptions,
@@ -18,11 +34,21 @@ pub fn parse_with_options(
 }
 
 /// Parse a packet while borrowing input-backed fields whenever possible.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the TNC2 envelope or APRS information field
+/// cannot be decoded.
 pub fn parse_ref(raw: &[u8]) -> Result<PacketRef<'_>, ParseError> {
     parse_ref_with_options(raw, ParseOptions::default())
 }
 
 /// Parse a borrowed packet with explicit parser options.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the packet is invalid under the selected
+/// options or its APRS information field cannot be decoded.
 pub fn parse_ref_with_options(
     raw: &[u8],
     options: ParseOptions,
@@ -575,9 +601,10 @@ pub(crate) fn parse_base91_telemetry(packet: &mut ParseState<'_>, comment: &mut 
     };
     let data = &comment[first + 1..last];
     let decode = |pair: &[u8]| i32::from(pair[0] - 33) * 91 + i32::from(pair[1] - 33);
-    let pairs: Vec<_> = data.as_bytes().chunks_exact(2).collect();
+    let (pairs, remainder) = data.as_bytes().as_chunks::<2>();
+    debug_assert!(remainder.is_empty());
     let mut telemetry = Telemetry {
-        sequence: Some(decode(pairs[0])),
+        sequence: Some(decode(&pairs[0])),
         ..Telemetry::default()
     };
     for (index, pair) in pairs.iter().skip(1).take(5).enumerate() {

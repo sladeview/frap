@@ -3,32 +3,49 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{ErrorCode, Message, ParseError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// Options controlling APRS position information-field encoding.
 pub struct EncodePositionOptions {
+    /// Number of least-significant coordinate digits replaced by spaces.
+    ///
+    /// Valid values are `0..=4`; compressed positions require zero ambiguity.
     pub ambiguity: u8,
+    /// Whether the position data-type identifier advertises messaging support.
     pub messaging_capable: bool,
+    /// Append a base-91 `!w..!` DAO extension to an unambiguous position.
     pub dao: bool,
     /// Encode the position using APRS compressed base-91 coordinates.
     pub compressed: bool,
     /// An APRS `HHMMSSh` timestamp. The caller controls the time source.
     pub timestamp: Option<String>,
+    /// Free-form text appended after position extensions.
     pub comment: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// APRS timestamp representation produced by [`encode_timestamp`].
 pub enum TimestampFormat {
+    /// UTC day, hour, and minute in `DDHHMMz` form.
     DayHourMinute,
+    /// UTC hour, minute, and second in `HHMMSSh` form.
     HourMinuteSecond,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Options controlling APRS object information-field encoding.
 pub struct EncodeObjectOptions {
+    /// `true` for a live object (`*`), or `false` for a killed object (`_`).
     pub alive: bool,
     /// Unix timestamp in seconds, or `None` to use the current time.
     pub timestamp: Option<i64>,
+    /// Optional speed in kilometres per hour.
     pub speed_kmh: Option<f64>,
+    /// Optional course in degrees.
     pub course_deg: Option<f64>,
+    /// Optional altitude in metres.
     pub altitude_m: Option<f64>,
+    /// Two-character APRS symbol consisting of table and code.
     pub symbol: String,
+    /// Position encoding settings shared with [`encode_position`].
     pub position: EncodePositionOptions,
 }
 
@@ -47,6 +64,9 @@ impl Default for EncodeObjectOptions {
 }
 
 /// Create a UTC APRS timestamp from Unix seconds.
+///
+/// `None` uses the current system time. The compatibility return type is a
+/// [`Result`], although all `i64` timestamps can currently be represented.
 pub fn encode_timestamp(
     timestamp: Option<i64>,
     format: TimestampFormat,
@@ -78,6 +98,11 @@ pub fn make_timestamp(
 }
 
 /// Encode an APRS object information field.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] for an invalid object name, position, symbol,
+/// timestamp, or incompatible position options.
 pub fn encode_object(
     name: &str,
     latitude: f64,
@@ -121,6 +146,16 @@ pub fn make_object(
     encode_object(name, latitude, longitude, options)
 }
 
+/// Encode an APRS message information field.
+///
+/// This supports ordinary messages, acknowledgements, rejections, message IDs,
+/// and reply-ack syntax. It rejects embedded line endings and incompatible
+/// acknowledgement/rejection combinations.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when a message field violates APRS size or syntax
+/// constraints, or when acknowledgement and rejection fields conflict.
 pub fn encode_message(message: &Message) -> Result<String, ParseError> {
     if message.destination.is_empty() {
         return Err(ParseError::new(
@@ -194,6 +229,17 @@ pub fn encode_message(message: &Message) -> Result<String, ParseError> {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Encode an APRS position information field.
+///
+/// Coordinates are decimal degrees, speed is kilometres per hour, course is
+/// degrees, and altitude is metres. An empty `symbol` selects APRS's default
+/// `//` symbol. Invalid coordinates, symbols, option combinations, or
+/// timestamps return [`ParseError`].
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when coordinates, symbol data, timestamps, or option
+/// combinations cannot be represented by the selected APRS format.
 pub fn encode_position(
     latitude: f64,
     longitude: f64,

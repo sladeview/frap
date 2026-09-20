@@ -3,13 +3,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{ErrorCode, ParseError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A decoded APRS timestamp.
+///
+/// APRS timestamps omit some calendar components. FRAP fills those components
+/// from the current date and adjusts day-based timestamps across month
+/// boundaries when necessary.
 pub struct AprsTimestamp {
+    /// Four-digit calendar year inferred for the timestamp.
     pub year: i32,
+    /// Calendar month in the range `1..=12`.
     pub month: u8,
+    /// Day of month in the range `1..=31`.
     pub day: u8,
+    /// Hour in the range `0..=23`.
     pub hour: u8,
+    /// Minute in the range `0..=59`.
     pub minute: u8,
+    /// Second in the range `0..=59`.
     pub second: u8,
+    /// Whether the source timestamp explicitly used UTC.
     pub utc: bool,
 }
 

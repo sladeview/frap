@@ -15,6 +15,30 @@ const MAX_APRS_IS_LINE_BYTES: usize = 2_048;
 /// This client is available with the `aprs-is` Cargo feature. Keeping it
 /// optional means applications that only parse APRS packets do not pull in an
 /// async runtime.
+///
+/// # Example
+///
+/// ```no_run
+/// use std::time::Duration;
+/// use frap::AprsIsConnection;
+///
+/// # async fn receive() -> std::io::Result<()> {
+/// let mut connection = AprsIsConnection::connect(
+///     "rotate.aprs2.net:14580",
+///     "N0CALL",
+///     "-1",
+///     "frap-example",
+///     env!("CARGO_PKG_VERSION"),
+///     Some("r/51.5/-3.0/100"),
+/// ).await?;
+///
+/// let line = connection.read_packet(Duration::from_secs(30)).await?;
+/// let packet = frap::parse(line)
+///     .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+/// println!("{}", packet.source);
+/// # Ok(())
+/// # }
+/// ```
 pub struct AprsIsConnection {
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
@@ -23,7 +47,15 @@ pub struct AprsIsConnection {
 }
 
 impl AprsIsConnection {
-    /// Connect to APRS-IS and asynchronously send the login line.
+    /// Connect to an APRS-IS server and send its login line.
+    ///
+    /// `application` and `version` identify the client software. `filter` is an
+    /// optional APRS-IS server-side filter without the leading `filter`
+    /// keyword. A passcode of `-1` requests an unverified receive-only login.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the TCP connection or login write fails.
     pub async fn connect(
         address: impl ToSocketAddrs,
         callsign: &str,
@@ -54,7 +86,7 @@ impl AprsIsConnection {
     /// Returns `TimedOut` if no complete line arrives before `read_timeout`,
     /// and `UnexpectedEof` if the connection closes before a complete line is
     /// received. Lines longer than 2048 bytes are drained and return
-    /// `InvalidData`.
+    /// `InvalidData`, as do lines that are not valid UTF-8.
     pub async fn read_line(&mut self, read_timeout: Duration) -> io::Result<String> {
         let line = timeout(read_timeout, async {
             loop {
@@ -112,6 +144,10 @@ impl AprsIsConnection {
     }
 
     /// Read the next packet line, skipping APRS-IS `#` server comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same I/O errors as [`Self::read_line`].
     pub async fn read_packet(&mut self, read_timeout: Duration) -> io::Result<String> {
         loop {
             let line = self.read_line(read_timeout).await?;
@@ -122,6 +158,11 @@ impl AprsIsConnection {
     }
 
     /// Write one line with the APRS-IS CR/LF terminator.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`io::ErrorKind::InvalidInput`] if `line` already contains CR or
+    /// LF, or propagates an error from the socket write.
     pub async fn send_line(&mut self, line: &str) -> io::Result<()> {
         if line.contains(['\r', '\n']) {
             return Err(io::Error::new(
@@ -135,6 +176,10 @@ impl AprsIsConnection {
     }
 
     /// Gracefully close the write side of the connection.
+    ///
+    /// # Errors
+    ///
+    /// Propagates an error from shutting down the socket.
     pub async fn close(&mut self) -> io::Result<()> {
         self.writer.shutdown().await
     }
