@@ -1,6 +1,6 @@
 [package]
 name = "frap"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A pure Rust port of the Finnish/Fabulous APRS Parser"
 license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
