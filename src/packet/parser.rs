@@ -1129,8 +1129,15 @@ fn parse_object(packet: &mut ParseState<'_>, body: &str) -> Result<(), ParseErro
             ));
         }
     };
-    packet.raw_timestamp = Some(body[11..18].to_owned());
-    packet.timestamp = parse_timestamp(&body[11..18]).ok();
+    let raw_timestamp = &body[11..18];
+    packet.raw_timestamp = Some(raw_timestamp.to_owned());
+    // APRS permanent objects use 111111z as a marker with no temporal value.
+    // This convention applies to objects only, not position or status reports.
+    packet.timestamp = if raw_timestamp == "111111z" {
+        None
+    } else {
+        parse_timestamp(raw_timestamp).ok()
+    };
     parse_position(packet, &body[18..])?;
     packet.packet_type = Some(PacketType::Object);
     Ok(())

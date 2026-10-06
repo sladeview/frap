@@ -79,6 +79,18 @@ names such as `parse`, `encode_position`, and `mice_message` are primary;
 `make_position`, `make_object`, `make_timestamp`, and
 `mice_mbits_to_message` are also available as compatibility names.
 
+Mic-E status messages such as “Special” are encoded separately from the
+free-text comment. Like FAP, frap exposes the status bits separately and
+preserves the remaining comment after decoding extensions such as altitude:
+
+```rust
+let packet = frap::parse(r#"M8FWJ-7>5Q3VYT,WIDE1-1,WIDE2-1,qAR,GW8VFQ-1:`yWRl!V[/`"4K}\_("#)?;
+let status = packet.mice_message_bits().map(frap::mice_message);
+assert_eq!(status, Some("Special"));
+assert_eq!(packet.comment(), Some(r"`\_("));
+# Ok::<(), frap::ParseError>(())
+```
+
 ## Encoding and frame conversion
 
 `EncodePositionOptions::compressed` selects APRS base-91 position encoding;
@@ -324,6 +336,12 @@ base-91 payload, so ordinary text such as `|Digi|` is syntactically
 indistinguishable from a two-pair telemetry report. FRAP follows the wire
 format and decodes it; applications that use free-form pipe-delimited comments
 should account for that ambiguity.
+
+For objects, `111111z` is the APRS permanent-object marker and carries no
+temporal value. FRAP preserves it in `raw_timestamp` and leaves `timestamp`
+as `None`, rather than inferring a date on the 11th at 11:11 UTC as FAP 1.21
+does. The same timestamp in a position or status report is decoded normally.
+See the [APRS object permanence specification](https://www.aprs.org/info/object-perm.txt).
 
 Classic `T#` reports are decoded permissively when truncated or when a later
 analog field is malformed. Valid leading channels remain available and a

@@ -241,6 +241,24 @@ fn parses_mice_position_and_altitude() {
 }
 
 #[test]
+fn mice_status_is_separate_from_the_comment() {
+    // FAP preserves the same comment and decodes mbits as 010 (special).
+    let raw = r#"M8FWJ-7>5Q3VYT,WIDE1-1,WIDE2-1,qAR,GW8VFQ-1:`yWRl!V[/`"4K}\_("#;
+    for packet in [
+        parse(raw).unwrap(),
+        parse_ref(raw.as_bytes()).unwrap().into_owned(),
+    ] {
+        assert_eq!(packet.mice_message_bits(), Some("010"));
+        assert_eq!(
+            frap::mice_message(packet.mice_message_bits().unwrap()),
+            "Special"
+        );
+        assert_eq!(packet.comment(), Some(r"`\_("));
+        assert_eq!(packet.altitude_m(), Some(52.0));
+    }
+}
+
+#[test]
 fn legacy_mice_telemetry_has_no_sequence() {
     let packet = parse("2W0FWJ-2>TQ4W2V,WIDE2-1,qAo,2W0FWJ:`c51!f?>/'A1B2").unwrap();
     let telemetry = packet.telemetry().unwrap();
@@ -266,6 +284,65 @@ fn repairs_the_known_mice_space_collapse() {
     assert_eq!(packet.course_deg(), None);
     assert_eq!(packet.comment(), Some("]Greetings via ISS="));
     assert!((packet.latitude().unwrap() - 45.1487).abs() < 0.0001);
+}
+
+#[test]
+fn permanent_objects_preserve_the_marker_without_a_decoded_date() {
+    let raw = "FLINT>APRX29,TCPIP*,qAC,W8FSM-MI:;Mi1-FLINT*111111z4300.  N/08339.  Wr444.600MHz C151 +500 R45m W8CMN.NET Flint UHF";
+    for raw in [raw.to_owned(), raw.replace("Mi1-FLINT*", "Mi1-FLINT_")] {
+        let borrowed = parse_ref(raw.as_bytes()).unwrap();
+        assert_eq!(borrowed.raw_timestamp(), Some("111111z"));
+        assert_eq!(borrowed.timestamp(), None);
+        let packet = parse(&raw).unwrap();
+        assert_eq!(borrowed.into_owned(), packet);
+        assert_eq!(packet.object_name(), Some("Mi1-FLINT"));
+        assert_eq!(packet.raw_timestamp(), Some("111111z"));
+        assert_eq!(packet.timestamp(), None);
+        assert!((packet.latitude().unwrap() - (43.0 + 0.5 / 60.0)).abs() < 1e-8);
+        assert!((packet.longitude().unwrap() + (83.0 + 39.5 / 60.0)).abs() < 1e-8);
+        assert_eq!(
+            packet.comment(),
+            Some("444.600MHz C151 +500 R45m W8CMN.NET Flint UHF")
+        );
+        assert!(packet.warnings.is_empty());
+    }
+}
+
+#[test]
+fn permanent_timestamp_marker_is_specific_to_objects_and_exact_stamp() {
+    for (raw, expected) in [
+        (
+            "N0CALL>APRS:/111111z4300.00N/08339.00W>Test",
+            (11, 11, 11, 0),
+        ),
+        ("N0CALL>APRS:>111111zTest", (11, 11, 11, 0)),
+        (
+            "N0CALL>APRS:;TEST     *111112z4300.00N/08339.00W>Test",
+            (11, 11, 12, 0),
+        ),
+        (
+            "N0CALL>APRS:;TEST     *111111/4300.00N/08339.00W>Test",
+            (11, 11, 11, 0),
+        ),
+    ] {
+        let packet = parse(raw).unwrap();
+        let timestamp = packet.timestamp().unwrap();
+        assert_eq!(
+            (
+                timestamp.day,
+                timestamp.hour,
+                timestamp.minute,
+                timestamp.second
+            ),
+            expected
+        );
+    }
+    let packet = parse("N0CALL>APRS:;TEST     *111111h4300.00N/08339.00W>Test").unwrap();
+    let timestamp = packet.timestamp().unwrap();
+    assert_eq!(
+        (timestamp.hour, timestamp.minute, timestamp.second),
+        (11, 11, 11)
+    );
 }
 
 #[test]
