@@ -156,6 +156,8 @@ pub struct PositionReport {
     /// Original seven-character APRS timestamp.
     pub raw_timestamp: Option<String>,
     /// Decoded timestamp with inferred calendar components.
+    /// `None` for an object's permanent `111111z` marker, which is retained in
+    /// [`Self::raw_timestamp`] and carries no temporal value.
     pub timestamp: Option<AprsTimestamp>,
     /// Whether the supplied NMEA checksum was valid.
     pub nmea_checksum_ok: Option<bool>,
@@ -620,6 +622,8 @@ macro_rules! packet_accessors {
             }
         }
         /// Return the decoded timestamp with inferred calendar components.
+        /// Permanent objects with the `111111z` marker return `None`; the marker
+        /// remains available through [`Self::raw_timestamp`].
         pub fn timestamp(&self) -> Option<AprsTimestamp> {
             match &self.body {
                 PacketBody::Status { timestamp, .. } => *timestamp,
